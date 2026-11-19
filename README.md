@@ -177,3 +177,14 @@ Este proyecto está configurado para desplegarse como un sitio estático de alto
 
 - **Jazp7** — *Laboratorio #3: Proyecto Creativo Web*
 - Desarrollado con 💚 utilizando TypeScript, SQLite WASM y Vite.
+# Configuración de Turso
+
+La aplicación usa Turso como base de datos SQLite remota. Antes de ejecutar el proyecto:
+
+1. Copia `.env.example` como `.env`.
+2. Sustituye `VITE_TURSO_URL` y `VITE_TURSO_TOKEN` por los valores de tu base en Turso.
+3. Instala dependencias y ejecuta `pnpm dev`.
+
+En Vercel, configura esas mismas variables con el prefijo `VITE_` en el entorno de producción y vuelve a desplegar. Al arrancar, la aplicación crea las tablas `plantas` y `riegos` si aún no existen, y carga datos demo solamente cuando la tabla de plantas está vacía.
+
+> Nota: al ser una SPA, el token se incluye en el navegador. Para una aplicación real con datos privados, mueve las operaciones de Turso a una API/backend y deja el token únicamente en el servidor.

@@ -137,7 +137,7 @@ export class PlantView {
         <!-- Footer -->
         <footer class="app-footer">
           <p>
-            Huerto Urbano Virtual &bull; Base de Datos Relacional SQLite persistida en el navegador &bull; Desarrollado con TypeScript &amp; sql.js
+              Huerto Urbano Virtual &bull; Base de Datos Relacional SQLite en Turso &bull; Desarrollado con TypeScript
           </p>
         </footer>
       </div>

@@ -14,6 +14,7 @@
     "vite": "^8.3.6"
   },
   "dependencies": {
+    "@libsql/client": "^0.15.15",
     "sql.js": "^1.16.0"
   }
 }

@@ -1,5 +1,5 @@
 import './styles/styles.css';
-import { initDatabase } from './db/database.ts';
+import { ensureTables, seedDemoData } from './db/initialize.ts';
 import { PlantView } from './views/plantView.ts';
 import { PlantController } from './controllers/plantController.ts';
 
@@ -19,7 +19,7 @@ function showLoadingScreen(): void {
         </div>
         <h2 class="loading-title">Iniciando Huerto Urbano</h2>
         <p class="loading-desc">
-          Cargando motor de base de datos SQLite con WebAssembly y restaurando tu jardín...
+          Conectando con tu jardín y restaurando los datos...
         </p>
       </div>
     </div>
@@ -27,7 +27,7 @@ function showLoadingScreen(): void {
 }
 
 /**
- * Displays a friendly error screen if SQLite WASM fails to load.
+ * Displays a friendly error screen if the database fails to load.
  */
 function showErrorScreen(error: unknown): void {
   const appElement = document.querySelector<HTMLElement>('#app');
@@ -41,7 +41,7 @@ function showErrorScreen(error: unknown): void {
         <div class="error-icon" aria-hidden="true">⚠️</div>
         <h2 class="error-title">Error al inicializar la base de datos</h2>
         <p class="error-desc">
-          No se pudo inicializar el motor SQLite WebAssembly o el almacenamiento local.<br />
+          No se pudo conectar con la base de datos remota.<br />
           <strong>Detalle:</strong> ${errorMessage}
         </p>
         <button type="button" class="btn btn-primary" onclick="window.location.reload()">
@@ -59,8 +59,8 @@ async function bootstrap(): Promise<void> {
   showLoadingScreen();
 
   try {
-    // Initialize SQLite WebAssembly engine and restore/seed database
-    await initDatabase();
+    await ensureTables();
+    await seedDemoData();
 
     // Create View & Controller instances and initialize app
     const view = new PlantView();

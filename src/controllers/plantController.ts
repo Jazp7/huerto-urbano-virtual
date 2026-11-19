@@ -10,8 +10,8 @@ import {
   deleteRiego,
   resetDemoData,
   calcularEstadoRiego,
-  getDb
 } from '../models/plant.ts';
+import { exec } from '../db/tursoClient.ts';
 import { PlantView } from '../views/plantView.ts';
 
 export class PlantController {
@@ -47,9 +47,9 @@ export class PlantController {
   /**
    * Refreshes stats, applies search and status filters, and renders the plant cards grid.
    */
-  public refreshView(): void {
+  public async refreshView(): Promise<void> {
     try {
-      const allPlants = getAllPlantas();
+      const allPlants = await getAllPlantas();
       const plantasConEstado = allPlants.map((planta) => ({
         planta,
         estado: calcularEstadoRiego(planta)
@@ -61,11 +61,8 @@ export class PlantController {
 
       let totalRiegos = 0;
       try {
-        const db = getDb();
-        const countResult = db.exec('SELECT COUNT(*) FROM riegos');
-        if (countResult.length && countResult[0].values.length) {
-          totalRiegos = Number(countResult[0].values[0][0]) || 0;
-        }
+        const countResult = await exec('SELECT COUNT(*) AS count FROM riegos');
+        totalRiegos = Number(countResult[0]?.count) || 0;
       } catch (err) {
         console.warn('Could not query riegos count directly from SQLite:', err);
       }
@@ -100,15 +97,15 @@ export class PlantController {
   /**
    * Handles quick watering button click on a plant card.
    */
-  public handleWaterPlant(id: number): void {
+  public async handleWaterPlant(id: number): Promise<void> {
     try {
-      const res = registrarRiego(id, 250, 'Riego rápido manual');
+      const res = await registrarRiego(id, 250, 'Riego rápido manual');
       if (res.saludMejorada) {
         this.view.showToast(`💧 ¡Planta regada! Su salud mejoró a "${res.nuevaSalud}" y está 100% hidratada.`, 'success');
       } else {
         this.view.showToast('💧 ¡Planta regada con éxito! Hidratación al 100%.', 'success');
       }
-      this.refreshView();
+      await this.refreshView();
     } catch (error) {
       console.error('Error watering plant:', error);
       this.view.showToast('No se pudo registrar el riego', 'error');
@@ -118,8 +115,8 @@ export class PlantController {
   /**
    * Handles editing a plant.
    */
-  public handleEditPlant(id: number): void {
-    const planta = getPlantaById(id);
+  public async handleEditPlant(id: number): Promise<void> {
+    const planta = await getPlantaById(id);
     if (!planta) {
       this.view.showToast('Planta no encontrada', 'error');
       return;
@@ -130,12 +127,12 @@ export class PlantController {
   /**
    * Handles deletion of a plant.
    */
-  public handleDeletePlant(id: number): void {
+  public async handleDeletePlant(id: number): Promise<void> {
     try {
-      const deleted = deletePlanta(id);
+      const deleted = await deletePlanta(id);
       if (deleted) {
         this.view.showToast('🗑️ Planta eliminada del huerto', 'info');
-        this.refreshView();
+        await this.refreshView();
       } else {
         this.view.showToast('No se pudo eliminar la planta', 'warning');
       }
@@ -148,37 +145,37 @@ export class PlantController {
   /**
    * Handles opening the watering history modal for a plant.
    */
-  public handleViewHistory(id: number): void {
-    const planta = getPlantaById(id);
+  public async handleViewHistory(id: number): Promise<void> {
+    const planta = await getPlantaById(id);
     if (!planta) {
       this.view.showToast('Planta no encontrada', 'error');
       return;
     }
-    const riegos = getRiegosByPlanta(id);
+    const riegos = await getRiegosByPlanta(id);
     this.view.openHistoryModal(planta, riegos);
   }
 
   /**
    * Handles submitting the plant modal (create or update).
    */
-  public handleSubmitPlant(
+  public async handleSubmitPlant(
     data: Omit<Planta, 'id' | 'creada_en'>,
     id?: number
-  ): void {
+  ): Promise<void> {
     try {
       if (id !== undefined) {
-        const success = updatePlanta(id, data);
+        const success = await updatePlanta(id, data);
         if (success) {
           this.view.showToast(`✅ Planta actualizada • Salud: ${data.salud}`, 'success');
         } else {
           this.view.showToast('No se pudo actualizar la planta', 'warning');
         }
       } else {
-        createPlanta(data);
+        await createPlanta(data);
         this.view.showToast('🌱 ¡Nueva planta añadida al huerto!', 'success');
       }
       this.view.closePlantModal();
-      this.refreshView();
+      await this.refreshView();
     } catch (error) {
       console.error('Error saving plant:', error);
       this.view.showToast('Error al guardar los datos de la planta', 'error');
@@ -188,11 +185,11 @@ export class PlantController {
   /**
    * Handles submitting a watering record inside the history modal.
    */
-  public handleSubmitWatering(plantaId: number, ml: number, obs: string): void {
+  public async handleSubmitWatering(plantaId: number, ml: number, obs: string): Promise<void> {
     try {
-      const res = registrarRiego(plantaId, ml, obs);
-      const planta = getPlantaById(plantaId);
-      const riegos = getRiegosByPlanta(plantaId);
+      const res = await registrarRiego(plantaId, ml, obs);
+      const planta = await getPlantaById(plantaId);
+      const riegos = await getRiegosByPlanta(plantaId);
       if (planta) {
         this.view.openHistoryModal(planta, riegos);
       }
@@ -201,7 +198,7 @@ export class PlantController {
       } else {
         this.view.showToast(`💧 Riego de ${ml} ml registrado con éxito`, 'success');
       }
-      this.refreshView();
+      await this.refreshView();
     } catch (error) {
       console.error('Error recording watering:', error);
       this.view.showToast('Error al registrar el riego', 'error');
@@ -211,17 +208,17 @@ export class PlantController {
   /**
    * Handles deleting a single watering record inside the history modal.
    */
-  public handleDeleteWatering(riegoId: number, plantaId: number): void {
+  public async handleDeleteWatering(riegoId: number, plantaId: number): Promise<void> {
     try {
-      const deleted = deleteRiego(riegoId);
+      const deleted = await deleteRiego(riegoId);
       if (deleted) {
-        const planta = getPlantaById(plantaId);
-        const riegos = getRiegosByPlanta(plantaId);
+        const planta = await getPlantaById(plantaId);
+        const riegos = await getRiegosByPlanta(plantaId);
         if (planta) {
           this.view.openHistoryModal(planta, riegos);
         }
         this.view.showToast('Registro de riego eliminado', 'info');
-        this.refreshView();
+        await this.refreshView();
       } else {
         this.view.showToast('No se pudo eliminar el registro de riego', 'warning');
       }

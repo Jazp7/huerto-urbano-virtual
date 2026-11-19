@@ -1,6 +1,8 @@
 import { getDb, resetDatabase, saveDatabaseToStorage } from '../db/database.ts';
 import type { EstadoRiego, Planta, Riego, SaludPlanta } from './types.ts';
 
+export { getDb };
+
 /**
  * Returns all plants ordered by newest first.
  */

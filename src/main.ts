@@ -1,60 +1,80 @@
-import './style.css'
-import heroImg from './assets/hero.png'
-import typescriptLogo from './assets/typescript.svg'
-import viteLogo from './assets/vite.svg'
-import { setupCounter } from './counter.ts'
+import './styles/styles.css';
+import { initDatabase } from './db/database.ts';
+import { PlantView } from './views/plantView.ts';
+import { PlantController } from './controllers/plantController.ts';
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${typescriptLogo}" class="framework" alt="TypeScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.ts</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+/**
+ * Renders an accessible botanical loading screen while the WebAssembly SQLite engine boots.
+ */
+function showLoadingScreen(): void {
+  const appElement = document.querySelector<HTMLElement>('#app');
+  if (!appElement) return;
 
-<div class="ticks"></div>
+  appElement.innerHTML = `
+    <div class="loading-screen" role="status" aria-live="polite">
+      <div class="loading-card">
+        <div class="loading-icon-wrap">
+          <div class="loading-spinner" aria-hidden="true"></div>
+          <span class="loading-logo" aria-hidden="true">🌱</span>
+        </div>
+        <h2 class="loading-title">Iniciando Huerto Urbano</h2>
+        <p class="loading-desc">
+          Cargando motor de base de datos SQLite con WebAssembly y restaurando tu jardín...
+        </p>
+      </div>
+    </div>
+  `;
+}
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://www.typescriptlang.org" target="_blank">
-          <img class="button-icon" src="${typescriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+/**
+ * Displays a friendly error screen if SQLite WASM fails to load.
+ */
+function showErrorScreen(error: unknown): void {
+  const appElement = document.querySelector<HTMLElement>('#app');
+  if (!appElement) return;
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+  const errorMessage = error instanceof Error ? error.message : String(error);
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+  appElement.innerHTML = `
+    <div class="error-screen" role="alert">
+      <div class="error-card">
+        <div class="error-icon" aria-hidden="true">⚠️</div>
+        <h2 class="error-title">Error al inicializar la base de datos</h2>
+        <p class="error-desc">
+          No se pudo inicializar el motor SQLite WebAssembly o el almacenamiento local.<br />
+          <strong>Detalle:</strong> ${errorMessage}
+        </p>
+        <button type="button" class="btn btn-primary" onclick="window.location.reload()">
+          🔄 Reintentar
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Main application entry point.
+ */
+async function bootstrap(): Promise<void> {
+  showLoadingScreen();
+
+  try {
+    // Initialize SQLite WebAssembly engine and restore/seed database
+    await initDatabase();
+
+    // Create View & Controller instances and initialize app
+    const view = new PlantView();
+    const controller = new PlantController(view);
+    controller.init();
+  } catch (err) {
+    console.error('Fatal initialization error:', err);
+    showErrorScreen(err);
+  }
+}
+
+// Bootstrap once DOM content is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrap);
+} else {
+  bootstrap();
+}

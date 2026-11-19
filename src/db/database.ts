@@ -1,4 +1,5 @@
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
+import { getLocalDateString } from '../models/types.ts';
 
 const STORAGE_KEY = 'huerto_urbano_sqlite_db';
 
@@ -60,7 +61,7 @@ export function saveDatabaseToStorage(): void {
 function getDateDaysAgo(days: number): string {
   const date = new Date();
   date.setDate(date.getDate() - days);
-  return date.toISOString().split('T')[0];
+  return getLocalDateString(date);
 }
 
 /**

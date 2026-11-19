@@ -1,7 +1,13 @@
 import { getDb, resetDatabase, saveDatabaseToStorage } from '../db/database.ts';
-import type { EstadoRiego, Planta, Riego, SaludPlanta } from './types.ts';
+import { getLocalDateString, type EstadoRiego, type Planta, type Riego, type SaludPlanta } from './types.ts';
 
-export { getDb };
+export { getDb, getLocalDateString };
+
+export interface ResultadoRiego extends Riego {
+  saludMejorada: boolean;
+  saludAnterior: SaludPlanta;
+  nuevaSalud: SaludPlanta;
+}
 
 /**
  * Returns all plants ordered by newest first.
@@ -166,16 +172,18 @@ export function deletePlanta(id: number): boolean {
 }
 
 /**
- * Records a new watering event for a plant, updates its ultimo_riego date, and saves to storage.
+ * Records a new watering event for a plant, updates its ultimo_riego date,
+ * automatically recovers plant health if it was needing attention or critical,
+ * and persists to storage.
  */
 export function registrarRiego(
   plantaId: number,
   cantidadMl: number = 250,
   observaciones: string = '',
   fecha?: string
-): Riego {
+): ResultadoRiego {
   const db = getDb();
-  const fechaRiego = fecha || new Date().toISOString().split('T')[0];
+  const fechaRiego = fecha || getLocalDateString();
 
   db.run(
     'INSERT INTO riegos (planta_id, fecha, cantidad_ml, observaciones) VALUES (?, ?, ?, ?)',
@@ -185,8 +193,25 @@ export function registrarRiego(
   const result = db.exec('SELECT last_insert_rowid() AS id');
   const id = Number(result[0]?.values[0]?.[0] ?? 0);
 
-  // Update ultimo_riego on the plant
-  db.run('UPDATE plantas SET ultimo_riego = ? WHERE id = ?', [fechaRiego, plantaId]);
+  // Fetch current plant to inspect its current health state
+  const currentPlant = getPlantaById(plantaId);
+  const saludAnterior: SaludPlanta = currentPlant?.salud || 'Excelente';
+  let nuevaSalud: SaludPlanta = saludAnterior;
+  let saludMejorada = false;
+
+  // Watering automatically improves/heals the plant if it was damaged or neglected by thirst
+  if (currentPlant) {
+    if (currentPlant.salud === 'Requiere Atención') {
+      nuevaSalud = 'Excelente';
+      saludMejorada = true;
+    } else if (currentPlant.salud === 'Crítica') {
+      nuevaSalud = 'Buena';
+      saludMejorada = true;
+    }
+  }
+
+  // Update ultimo_riego and improved salud on the plant
+  db.run('UPDATE plantas SET ultimo_riego = ?, salud = ? WHERE id = ?', [fechaRiego, nuevaSalud, plantaId]);
 
   saveDatabaseToStorage();
 
@@ -195,7 +220,10 @@ export function registrarRiego(
     planta_id: plantaId,
     fecha: fechaRiego,
     cantidad_ml: cantidadMl,
-    observaciones
+    observaciones,
+    saludMejorada,
+    saludAnterior,
+    nuevaSalud
   };
 }
 
@@ -294,6 +322,9 @@ export function calcularEstadoRiego(planta: Planta): EstadoRiego {
   } else if (diasRestantes === 0) {
     mensaje = 'Toca regar hoy';
     badgeClass = 'badge-warning';
+  } else if (diasTranscurridos === 0) {
+    mensaje = planta.frecuencia_dias === 1 ? '💧 Regada hoy • Mañana toca riego' : `💧 Regada hoy • Próximo en ${planta.frecuencia_dias} días`;
+    badgeClass = 'badge-success';
   } else if (diasRestantes === 1) {
     mensaje = 'Regar mañana';
     badgeClass = 'badge-info';
@@ -308,6 +339,7 @@ export function calcularEstadoRiego(planta: Planta): EstadoRiego {
     diasRetraso,
     porcentajeHidratacion,
     mensaje,
-    badgeClass
+    badgeClass,
+    diasTranscurridos
   };
 }

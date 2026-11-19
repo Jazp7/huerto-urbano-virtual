@@ -556,14 +556,18 @@ export class PlantView {
           fillClass = 'fill-mid';
         }
 
-        // Health class
+        // Health class (with rule: if not watered today, force "Requiere Atención")
         const healthClassMap: Record<SaludPlanta, string> = {
           'Excelente': 'health-excelente',
           'Buena': 'health-buena',
           'Requiere Atención': 'health-requiere-atencion',
           'Crítica': 'health-critica'
         };
-        const healthClass = healthClassMap[planta.salud] || 'health-buena';
+        let displayHealth: SaludPlanta = planta.salud;
+        if (estado.diasTranscurridos > 0 && (planta.salud === 'Excelente' || planta.salud === 'Buena')) {
+          displayHealth = 'Requiere Atención';
+        }
+        const healthClass = healthClassMap[displayHealth] || 'health-buena';
 
         // Card urgent water class
         const cardClass = estado.necesitaAgua ? 'card-needs-water' : 'card-hydrated';

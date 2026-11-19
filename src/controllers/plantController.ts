@@ -102,8 +102,12 @@ export class PlantController {
    */
   public handleWaterPlant(id: number): void {
     try {
-      registrarRiego(id, 250, 'Riego rápido manual');
-      this.view.showToast('💧 ¡Planta regada con éxito!', 'success');
+      const res = registrarRiego(id, 250, 'Riego rápido manual');
+      if (res.saludMejorada) {
+        this.view.showToast(`💧 ¡Planta regada! Su salud mejoró a "${res.nuevaSalud}" y está 100% hidratada.`, 'success');
+      } else {
+        this.view.showToast('💧 ¡Planta regada con éxito! Hidratación al 100%.', 'success');
+      }
       this.refreshView();
     } catch (error) {
       console.error('Error watering plant:', error);
@@ -165,7 +169,7 @@ export class PlantController {
       if (id !== undefined) {
         const success = updatePlanta(id, data);
         if (success) {
-          this.view.showToast('✅ Planta actualizada', 'success');
+          this.view.showToast(`✅ Planta actualizada • Salud: ${data.salud}`, 'success');
         } else {
           this.view.showToast('No se pudo actualizar la planta', 'warning');
         }
@@ -186,13 +190,17 @@ export class PlantController {
    */
   public handleSubmitWatering(plantaId: number, ml: number, obs: string): void {
     try {
-      registrarRiego(plantaId, ml, obs);
+      const res = registrarRiego(plantaId, ml, obs);
       const planta = getPlantaById(plantaId);
       const riegos = getRiegosByPlanta(plantaId);
       if (planta) {
         this.view.openHistoryModal(planta, riegos);
       }
-      this.view.showToast('💧 Riego registrado', 'success');
+      if (res.saludMejorada) {
+        this.view.showToast(`💧 Riego de ${ml} ml registrado. ¡Salud mejorada a "${res.nuevaSalud}"!`, 'success');
+      } else {
+        this.view.showToast(`💧 Riego de ${ml} ml registrado con éxito`, 'success');
+      }
       this.refreshView();
     } catch (error) {
       console.error('Error recording watering:', error);
